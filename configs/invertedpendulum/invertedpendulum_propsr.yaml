@@ -2,7 +2,7 @@ task: cont_state_llm_num_reward
 num_episodes: 400
 gym_env_name: InvertedPendulum-v5
 render_mode: null
-logdir: reward-logs/nn-simulated/invertedpendulum
+logdir: reward-logs/props-wo-cosine-simulated/invertedpendulum
 dim_actions: 1
 dim_states: 4
 max_traj_count: 1000
@@ -25,4 +25,4 @@ summary: false
 memory_strategy: default
 dataset_file: ip-simulated-params.txt
 reward_range: (0, 1000]
-run_nn_train: true
+run_nn_train: false

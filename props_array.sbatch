@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=propsR-sim
+#SBATCH --job-name=BT-MLE
 #SBATCH --array=1                # Total number of sub-jobs (will be overridden by command line)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2           # Default cores per sub-job (can be overridden with -c)
+#SBATCH --cpus-per-task=1           # Default cores per sub-job (can be overridden with -c)
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:a100:1
 #SBATCH --constraint=a100_80
@@ -11,15 +11,15 @@
 #SBATCH --time=24:00:00             # Wall time for each sub-job
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=%u@asu.edu
-#SBATCH --output=/scratch/apoojar4/propsR-sim-log/propsR-slurm/MCD-task2/task_%a.log
-#SBATCH --error=/scratch/apoojar4/propsR-sim-log/propsR-slurm/MCD-task2/task_%a.err
+#SBATCH --output=props-BT/hopper/slurm/task_%a.log
+#SBATCH --error=props-BT/hopper/slurm/task_%a.err
 
 # --- Job Configuration ---
-CONFIG_FILE="configs/mountaincar/mountaincar_propsr.yaml"
-BASE_LOG_DIR="propsR-sim-log/MCD-task2_propsR"
+CONFIG_FILE="configs/hopper/hopper_trajectory.yaml"
+BASE_LOG_DIR="props-BT/hopper"
 
 # --- Create a unique directory for this specific trial's output ---
-TRIAL_LOG_DIR="/scratch/apoojar4/${BASE_LOG_DIR}/trial_${SLURM_ARRAY_TASK_ID}"
+TRIAL_LOG_DIR="${BASE_LOG_DIR}/trial_${SLURM_ARRAY_TASK_ID}"
 mkdir -p "$TRIAL_LOG_DIR"
 
 # --- Load Modules ---
@@ -50,7 +50,7 @@ export OLLAMA_HOST="0.0.0.0:$OLLAMA_PORT"
 echo "--- Assigned Port: $OLLAMA_PORT ---"
 echo "--- OLLAMA_HOST set to: $OLLAMA_HOST ---"
 
-ollama serve &
+OLLAMA_CONTEXT_LENGTH=131072 ollama serve &
 OLLAMA_PID=$! 
 sleep 15
 

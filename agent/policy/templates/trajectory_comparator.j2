@@ -1,0 +1,23 @@
+REASONING: High
+
+You are an expert critic, helping me compare trajectories of two reinforcement learning (RL) policies in the following environment:
+
+# Environment:
+{% include env_description %}
+
+Trajectory from Policy A:
+{{ trajectory_a }}
+
+Trajectory from Policy B:
+{{ trajectory_b }}
+
+Please provide a detailed comparison of the two trajectories, focusing on the following aspects:
+<think>
+1. Don't just summarize the trajectories; analyze the behaviors exhibited by each policy.
+2. Evaluate how effectively each policy achieves the environment's goals.
+3. Discuss the strengths and weaknesses of each policy based on their trajectories.
+4. Consider any trade-offs made by each policy in terms of performance, stability, and efficiency.
+5. Don't just rely on the length of the trajectories; consider the quality of actions taken at each step.
+</think>
+
+{{ response_schema }}

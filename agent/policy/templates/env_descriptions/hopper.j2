@@ -1,4 +1,5 @@
 The hopper is a two-dimensional one-legged figure consisting of four main body parts - the torso at the top, the thigh in the middle, the leg at the bottom, and a single foot on which the entire body rests. The goal is to make hops that move in the forward (right) direction by applying torque to the three hinges that connect the four body parts. 
+
 The state is a vector of 11 elements, representing the following:
 - state[0] z-coordinate of the torso (height of hopper) (-inf to inf m)
 - state[1] angle of the torso (-inf to inf rad)
@@ -30,11 +31,9 @@ W = [[params[0], params[1], params[2]],
     [params[27], params[28], params[29]],
     [params[30], params[31], params[32]]]
 b = [params[33], params[34], params[35]]
+
 The goal is to try to move forward without falling over.
-reward = healthy_reward + forward_reward - ctrl_cost
-where
-- healthy_reward = 1.0 if the Hopper is healthy (see below)
-- forward_reward = torso's x-velocity
-- ctrl_cost = 1e-3 * ||action||^2
-The Hopper is considered healthy if the torso's z-coordinate is higher than 0.7 m and the torso's angle is between -0.2 and 0.2 radians (does not fall over).
+
+The Hopper is considered healthy if the torso's z-coordinate is higher than 0.7m and the torso's angle is between -0.2 and 0.2 radians (does not fall over).
+
 The episode ends when the Hopper is not healthy.

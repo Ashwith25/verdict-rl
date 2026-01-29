@@ -12,16 +12,23 @@ import socket
 from stats.inverted_double_pendulum.idp_stats import evaluate_params
 import json
 from configs.inverted_double_pendulum.idp_summarise_template import TEMPLATE
+from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field, ValidationError
+from typing import Tuple, Any, List, Optional, Dict
+from enum import Enum
 # from ollama_config import ollama_base_url
 # from ollama import chat
 
-class OutputSchema(BaseModel):
-    reward: float = Field(description="Value of the reward aiming to estimate the most approximate reward. Please propose reward with 2 decimal places.")
-    confidence: int = Field(description="Confidence score between 1 to 10, indicating your confidence on the reward your suggested.")
-    reason: str = Field(description="Detailed explanation of why you chose that reward.")
+class Winner(str, Enum):
+    A = "A"
+    B = "B"
+    TIE = "Tie"
 
-class LLMBrainReward:
+class OutputSchema(BaseModel):
+    winner: Winner = Field(description="The trajectory which is better among the two given trajectories.")
+    description: str = Field(description="Detailed comparison of the two trajectories based on the aspects mentioned above and why you chose A, B, or Tie.")
+
+class LLMBrainTrajectory:
     def __init__(
         self,
         llm_si_template: Template,
@@ -31,8 +38,9 @@ class LLMBrainReward:
         self.llm_si_template = llm_si_template
         self.llm_output_conversion_template = llm_output_conversion_template
         self.llm_conversation = []
-        response_schema_dict = OutputSchema.model_json_schema()
-        self.response_schema_json = json.dumps(response_schema_dict, indent=2)
+        # response_schema_dict = OutputSchema.model_json_schema()
+        # self.response_schema_json = json.dumps(response_schema_dict, indent=2)
+        self.parser = PydanticOutputParser(pydantic_object=OutputSchema)
 
         assert llm_model_name in [
             "o1-preview",
@@ -108,19 +116,6 @@ class LLMBrainReward:
             self.llm_conversation.append({"role": role, "content": text})
         else:
             self.llm_conversation.append({"role": role, "parts": text})
-    
-    def query_reasoning_llm(self, content):
-        # TODO: Hardcoded for OpenAI for now
-
-        completion = self.client.chat.completions.create(
-            model=self.llm_model_name,
-            extra_body={"reasoning_effort": "high"},
-            messages=[{
-            "role": "user",
-            "content": content
-        }],
-        )
-        return completion.choices[0].message.content
 
     def query_llm(self):
         max_iter = [0, []]
@@ -169,38 +164,26 @@ class LLMBrainReward:
 
     def llm_update_parameters_num_optim_semantics(
         self,
-        params: np.ndarray,
-        episode_reward_buffer,
-        step_number,
         env_desc_file,
-        reward_range=None,
-        rank=None,
-        optimum=None,
-        search_step_size=0.1,
-        actions=None,
+        trajectory_a,
+        trajectory_b,
     ):
         self.reset_llm_conversation()
 
         system_prompt = self.llm_si_template.render(
             {
-                "episode_reward_buffer_string": str(episode_reward_buffer),
                 "env_description": env_desc_file,
-                "rank": rank,
-                "optimum": str(optimum),
-                "step_size": str(search_step_size),
-                "actions": actions,
-                "current_iteration": step_number,
-                "response_schema": self.response_schema_json,
-                "target_params_string": np.array2string(params, separator=', '),
-                "reward_range": reward_range,
+                "response_schema": self.parser.get_format_instructions(),
+                "trajectory_a": trajectory_a,
+                "trajectory_b": trajectory_b,
             }
         )
 
         self.add_llm_conversation(system_prompt, "user")
 
-        api_start_time = time.time()
+        # api_start_time = time.time()
         response, thinking = self.query_llm()
-        api_time = time.time() - api_start_time
+        # api_time = time.time() - api_start_time
         try:
             validated_response = OutputSchema.model_validate_json(response)
         except ValidationError as e:
@@ -222,14 +205,13 @@ class LLMBrainReward:
         # explanation = self.query_reasoning_llm(new_parameters_lis, stats) if summary else None
 
         return (
-            validated_response.reward,
-            validated_response.confidence,
-            validated_response.reason,
+            validated_response.winner.value,
+            validated_response.description,
             "system:\n"
             + system_prompt
             + "\n\n\nLLM:\n"
             + response
             + "\n\n\nThinking:\n"
             + thinking,
-            api_time,
+            # api_time,
         )
