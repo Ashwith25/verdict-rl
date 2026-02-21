@@ -3,7 +3,7 @@
 #SBATCH --array=1                # Total number of sub-jobs (will be overridden by command line)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1           # Default cores per sub-job (can be overridden with -c)
+#SBATCH --cpus-per-task=2           # Default cores per sub-job (can be overridden with -c)
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:a100:1
 #SBATCH --constraint=a100_80
@@ -11,12 +11,12 @@
 #SBATCH --time=24:00:00             # Wall time for each sub-job
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=%u@asu.edu
-#SBATCH --output=props-BT/hopper/slurm/task_%a.log
-#SBATCH --error=props-BT/hopper/slurm/task_%a.err
+#SBATCH --output=props-BT-2/hopper/slurm/task_%a.log
+#SBATCH --error=props-BT-2/hopper/slurm/task_%a.err
 
 # --- Job Configuration ---
 CONFIG_FILE="configs/hopper/hopper_trajectory.yaml"
-BASE_LOG_DIR="props-BT/hopper"
+BASE_LOG_DIR="props-BT-2/hopper"
 
 # --- Create a unique directory for this specific trial's output ---
 TRIAL_LOG_DIR="${BASE_LOG_DIR}/trial_${SLURM_ARRAY_TASK_ID}"

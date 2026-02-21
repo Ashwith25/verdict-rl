@@ -1,0 +1,16 @@
+task: cont_state_llm_num_reward
+num_episodes: 400
+gym_env_name: InvertedPendulum-v5
+render_mode: rgb_array
+logdir: /scratch/apoojar4/props-trajectory/invertedpendulum
+dim_actions: 1
+dim_states: 4
+max_traj_count: 1000
+max_traj_length: 1000
+template_dir: agent/policy/templates
+llm_si_template_name: trajectory_comparator.j2
+llm_output_conversion_template_name: trajectory_comparator.j2
+llm_model_name: gpt-oss:120b
+bias: true
+env_desc_file: env_descriptions/invertedpendulum.j2
+dataset_file: FINAL_DATASET/inverted_pendulum_dataset.txt

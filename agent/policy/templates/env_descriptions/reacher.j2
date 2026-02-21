@@ -1,11 +1,11 @@
-“Reacher” is a two-jointed robot arm. The goal is to move the robot’s end effector (called fingertip) close to a target that is spawned at a random position.
+Reacher is a two-jointed robot arm. The goal is to move the robot's end effector (called fingertip) close to a target that is spawned at a random position.
 
 The observation space consists of the following parts (in order):
 cos(qpos) (2 elements): The cosine of the angles of the two arms.
 sin(qpos) (2 elements): The sine of the angles of the two arms.
 qpos (2 elements): The coordinates of the target.
 qvel (2 elements): The angular velocities of the arms (their derivatives).
-xpos (2 elements): The vector between the target and the reacher’s.
+xpos (2 elements): The vector between the target and the reacher's.
 
 The action space is a Box(-1, 1, (2,), float32). An action (a, b) represents the torques applied at the hinge joints.
 
@@ -23,9 +23,5 @@ W = [[params[0], params[1]],
     [params[16], params[17]],
     [params[18], params[19]]]
 b = [params[20], params[21]]
-
-The total reward is: reward = reward_distance + reward_control.
-reward_distance: This reward is a measure of how far the fingertip of the reacher (the unattached end) is from the target, with a more negative value assigned if the reacher’s fingertip is further away from the target.
-reward_control: A negative reward to penalize the walker for taking actions that are too large. It is measured as the negative squared Euclidean norm of the action.
 
 The goal is to minimize the distance between the fingertip and the target while minimizing the control cost. 

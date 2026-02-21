@@ -2,11 +2,11 @@ import os
 import random
 
 
-for i in [1]:
-    file = f"/scratch/apoojar4/props-log/mcd-logs/MCD_traj_70_baseline/trial_{i}"
-    reward_file_lines = open(f"/scratch/apoojar4/props-log/mcd-logs/MCD_traj_70_baseline/trial_{i}/overall_log.txt").readlines()[1:]
+for i in [3, 4, 5]:
+    file = f"/scratch/apoojar4/props-log/mcd-logs/MCD_traj_20_summary/trial_{i}"
+    reward_file_lines = open(f"/scratch/apoojar4/props-log/mcd-logs/MCD_traj_20_summary/trial_{i}/overall_log.txt").readlines()[1:]
 
-    with open("mcd-simulated-params.txt", "w") as param_file:
+    with open("mcd_dataset.txt", "a") as param_file:
         filenames = [f for f in os.listdir(file) if f.startswith("episode")]
         sorted_filenames = sorted(filenames, key=lambda x: int(x.split('_')[-1]))
         for filename in sorted_filenames:

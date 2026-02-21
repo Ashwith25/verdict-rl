@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=propsR
-#SBATCH --array=1-15                # Total number of sub-jobs (will be overridden by command line)
+#SBATCH --array=1-10                # Total number of sub-jobs (will be overridden by command line)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2           # Default cores per sub-job (can be overridden with -c)
+#SBATCH --cpus-per-task=1           # Default cores per sub-job (can be overridden with -c)
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:a100:1
 #SBATCH --constraint=a100_80
@@ -11,8 +11,8 @@
 #SBATCH --time=24:00:00             # Wall time for each sub-job
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=%u@asu.edu
-#SBATCH --output=propsR/task_%a.log
-#SBATCH --error=propsR/task_%a.err
+#SBATCH --output=props-BT/slurm/task_%a.log
+#SBATCH --error=props-BT/slurm/task_%a.err
 
 # --- 1. Setup: Read Manifest ---
 manifest="${1:?ERROR -- must pass a manifest file as first argument}"
@@ -72,7 +72,7 @@ export OLLAMA_HOST="0.0.0.0:$OLLAMA_PORT"
 echo "--- Assigned Port: $OLLAMA_PORT ---"
 echo "--- OLLAMA_HOST set to: $OLLAMA_HOST ---"
 
-ollama serve &
+OLLAMA_CONTEXT_LENGTH=131072 ollama serve &
 OLLAMA_PID=$! 
 sleep 15
 
@@ -97,8 +97,6 @@ echo "========================================================================="
 /home/apoojar4/.conda/envs/thesis/bin/python3 main.py \
     --config "$config" \
     --logdir "$TRIAL_LOG_DIR" \
-    --summary "$summary" \
-    max_traj_count="$max_traj_count" \
     max_best_length="$max_best_length"
 
 # Check exit status

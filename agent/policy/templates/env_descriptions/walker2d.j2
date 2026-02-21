@@ -53,10 +53,4 @@ B = [
      params[102], params[103], params[104], params[105], params[106], params[107]
 ]
 
-The total reward is: reward = healthy_reward bonus + forward_reward - ctrl_cost.
-
-healthy_reward: Every timestep that the Walker2d is alive, it receives a fixed reward of value healthy_reward (default is 1).
-forward_reward: A reward for moving forward, this reward would be positive if the walker moves forward (in the positive direction / in the right direction). 
-ctrl_cost: A negative reward to penalize the Walker2d for taking actions that are too large. 
-
 The goal is to walk in the forward (right) direction by applying torque to the six hinges connecting the seven body parts.

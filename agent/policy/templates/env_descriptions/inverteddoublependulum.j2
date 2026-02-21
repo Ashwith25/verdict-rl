@@ -27,9 +27,4 @@ W = [[params[0]],
      [params[8]],]
 B = [params[9]]
 
-The total reward is: reward = alive_bonus - distance_penalty - velocity_penalty.
-alive_bonus: Every timestep that the Inverted Pendulum is healthy (see definition in section “Episode End”), it gets a reward of fixed value healthy_reward (default is 10).
-distance_penalty: This reward is a measure of how far the tip of the second pendulum (the only free end) moves.
-velocity_penalty: A negative reward to penalize the agent for moving too fast. 
-
 The goal is to keep the second pole balanced on top of the first pole while minimizing the movement of the cart and the poles.

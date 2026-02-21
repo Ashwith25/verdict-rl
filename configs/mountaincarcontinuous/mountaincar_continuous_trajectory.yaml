@@ -1,10 +1,10 @@
 task: cont_state_llm_num_optim_semantics
-num_episodes: 395
-gym_env_name: Hopper-v5
+num_episodes: 400
+gym_env_name: MountainCarContinuous-v0
 render_mode: rgb_array
-logdir: /scratch/apoojar4/props-trajectory/hopper
-dim_actions: 3
-dim_states: 11
+logdir: /scratch/apoojar4/props-trajectory/mountaincarcontinuous
+dim_actions: 1
+dim_states: 2
 max_traj_count: 1000
 max_traj_length: 1000
 template_dir: agent/policy/templates
@@ -12,5 +12,5 @@ llm_si_template_name: trajectory_comparator.j2
 llm_output_conversion_template_name: trajectory_comparator.j2
 llm_model_name: gpt-oss:120b
 bias: true
-env_desc_file: env_descriptions/hopper.j2
-dataset_file: FINAL_DATASET/hopper_dataset.txt
+env_desc_file: env_descriptions/mountaincarcontinuous.j2
+dataset_file: FINAL_DATASET/mountaincar_continuous_dataset.txt

@@ -66,7 +66,7 @@ def run_training_loop(
     with open(dataset_file, "r") as f:
         params_dataset = [np.array(l.split(" | ")[0].split(",")).astype(float) for l in f.readlines()]
 
-    final_samples = random.sample(params_dataset, 30)
+    final_samples = random.sample(params_dataset, 10)
     final_comparison_policies = [[i, j, final_samples[i], final_samples[j]] for i in range(len(final_samples)) for j in range(i+1, len(final_samples))]
     print("length of final comparison policies:", len(final_comparison_policies))
     

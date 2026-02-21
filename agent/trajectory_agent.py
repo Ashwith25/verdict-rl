@@ -10,6 +10,7 @@ import re
 import time
 import json
 import random
+import cv2
 
 class LLMNumOptimTrajectoryAgent:
     def __init__(
@@ -55,9 +56,19 @@ class LLMNumOptimTrajectoryAgent:
     def rollout_episode(self, world: BaseWorld):
         state = world.reset()
         state = np.expand_dims(state, axis=0)
-        trajectory = f"{', '.join([str(x) for x in self.policy.get_parameters().reshape(-1)])}\n"
-        trajectory += f"parameter ends\n\n"
-        trajectory += f"state | action | reward\n"
+        # trajectory = f"{', '.join([str(x) for x in self.policy.get_parameters().reshape(-1)])}\n"
+        # trajectory += f"parameter ends\n\n"
+        trajectory = f"state | action | next state\n"
+
+        frames = []
+        if hasattr(world, 'render_mode') and world.render_mode == "rgb_array":
+            try:
+                if hasattr(world, 'env') and hasattr(world.env, 'render'):
+                    frame = world.env.render()
+                    if frame is not None:
+                        frames.append(frame)
+            except Exception as e:
+                print(f"Error rendering frame: {e}")
         terminated, truncated = False, False
         step_idx = 0
         while not (terminated or truncated):
@@ -67,13 +78,23 @@ class LLMNumOptimTrajectoryAgent:
                 action = np.argmax(action)
                 action = np.array([action])
             next_state, reward, terminated, truncated = world.step(action)
-            trajectory += f"{state.T[0]} | {action[0]} | {reward}\n"
+            trajectory += f"{np.array2string(state[0] if step_idx==0 else state.T, separator=', ', max_line_width=np.inf)} | {np.array2string(action[0], separator=', ')} | {np.array2string(next_state.T, separator=', ', max_line_width=np.inf)}\n"
+            
+            if hasattr(world, 'render_mode') and world.render_mode == "rgb_array":
+                try:
+                    if hasattr(world, 'env') and hasattr(world.env, 'render'):
+                        frame = world.env.render()
+                        if frame is not None:
+                            frames.append(frame)
+                except Exception as e:
+                    pass
+            
             state = next_state
             step_idx += 1
             self.total_steps += 1
         # logging_file.write(f"Total reward: {world.get_accu_reward()}\n")
         self.total_episodes += 1
-        return trajectory, world.get_accu_reward()
+        return trajectory, world.get_accu_reward(), frames
 
     def random_warmup(self, world: BaseWorld, logdir, num_episodes):
         for episode in range(num_episodes):
@@ -155,9 +176,37 @@ class LLMNumOptimTrajectoryAgent:
         # params = np.array(self.policy.get_parameters()).reshape(-1)
 
         self.policy.update_policy(policy_A)
-        trajectory_A, reward_A = self.rollout_episode(world)
+        trajectory_A, reward_A, frames_A = self.rollout_episode(world)
         self.policy.update_policy(policy_B)
-        trajectory_B, reward_B = self.rollout_episode(world)
+        trajectory_B, reward_B, frames_B = self.rollout_episode(world)
+
+        if frames_A and frames_B:
+            try:
+                max_len = max(len(frames_A), len(frames_B))
+                height, width, _ = frames_A[0].shape
+                # Create video writer
+                video_filename = f"{logdir}/comparison.mp4"
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(video_filename, fourcc, 30.0, (width * 2, height))
+
+                for i in range(max_len):
+                    # Use last frame if one video is shorter
+                    frame_a = frames_A[min(i, len(frames_A) - 1)]
+                    frame_b = frames_B[min(i, len(frames_B) - 1)]
+                    
+                    # Ensure dimensions match (resize B to A if necessary)
+                    if frame_a.shape != frame_b.shape:
+                        frame_b = cv2.resize(frame_b, (frame_a.shape[1], frame_a.shape[0]))
+
+                    # Stitch horizontally
+                    stitched_frame = np.concatenate((frame_a, frame_b), axis=1)
+                    # Convert RGB (Gym) to BGR (OpenCV)
+                    stitched_frame = cv2.cvtColor(stitched_frame, cv2.COLOR_RGB2BGR)
+                    out.write(stitched_frame)
+                out.release()
+            except Exception as e:
+                print(f"Failed to save comparison video: {e}")
+
 
         winner, description, reasoning = self.llm_traj_brain.llm_update_parameters_num_optim_semantics(
             self.env_desc_file,
