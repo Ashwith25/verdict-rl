@@ -1,33 +1,153 @@
-# Prompted Policy Search: Reinforcement Learning through Linguistic and Numerical Reasoning in LLMs
+# VERDICT-RL
+### Learning from Comparisons: LLMs as Critics in Reinforcement Learning
 
+Replace fragile reward signals with reasoned judgment.
 
-This repo serves as the code base for Prompted Policy Search (ProPS and ProPS<sup>+</sup>). The project website is [here](https://props-llm.github.io/).
+VERDICT-RL uses Large Language Models as critics to guide reinforcement learning via trajectory comparisons instead of scalar rewards.
 
-<p align="center">
-<img src = "static/banner.gif" width ="800" />
-</p>
+---
 
-## Key Takeaways
-In this paper, we demonstrate that:
-1. LLMs can perform numerical optimization for Reinforcement Learning (RL) tasks.
-2. LLMs can incorporate semantics signals, (e.g., goals, domain knowledge, ...), leading to more informed exploraton and sample-efficient learning.
-3. Our proposed ProPS outperforms all baselines on 8 out of 15 Gymnasium tasks.
+## Overview
 
+Traditional RL optimizes a scalar reward.  
+This breaks down when:
+- rewards are poorly specified  
+- policies exploit loopholes (reward hacking)  
+- tasks require semantic understanding  
 
-# Getting Started
+VERDICT-RL replaces rewards with comparisons.
 
-## Install RL Tasks
+Instead of asking:
+“How good is this trajectory?”
 
-- The RL tasks are based on gymnasium. Please install according to `https://github.com/Farama-Foundation/Gymnasium`
-- There are 2 customized environments in the folders `./envs/gym-maze-master` and `./envs/gym-navigation-main`. If you want to train the maze or navigation agent, please pip install the packages.
+We ask:
+“Which trajectory is better?”
 
-## Install the LLM APIs
+---
 
-We utilized the standard Google Gemini, Openai, and Anthropic APIs. Please install the packages accordingly.
+## Method
 
-- `https://ai.google.dev/gemini-api/docs`
-- `https://platform.openai.com/docs/overview`
-- `https://docs.anthropic.com/en/release-notes/api`
+```mermaid
+flowchart TD
+    A[Environment] --> B[Policy]
+    B --> C[Trajectories]
+    C --> D[Pairwise Sampler]
+    D --> E[LLM Critic]
+    E --> F[Preference Signal]
+    F --> G[Policy Update]
+    G --> B
+```
 
-## Start Training
-In order to run an experiment, please run `python main.py --config <configuration_file>`.
+---
+
+## Training Loop
+
+```mermaid
+sequenceDiagram
+    participant Policy
+    participant Env as Environment
+    participant Buffer
+    participant LLM as LLM Critic
+
+    Policy->>Env: Rollout
+    Env-->>Policy: Observations
+    Policy->>Buffer: Store trajectories
+
+    Buffer->>LLM: Sample (τ₁, τ₂)
+    LLM-->>Buffer: Preference (τ₁ > τ₂)
+
+    Buffer->>Policy: Learning signal
+    Policy->>Policy: Update parameters
+```
+
+---
+
+## Key Idea
+
+VERDICT-RL shifts learning from:
+
+| Traditional RL | VERDICT-RL |
+|----------------|-----------|
+| Scalar reward | Pairwise preference |
+| Hand-designed signals | LLM reasoning |
+| Opaque optimization | Interpretable critique |
+
+---
+
+## Setup
+
+```bash
+git clone https://github.com/your-username/verdict-rl.git
+cd verdict-rl
+
+conda create -n verdict python=3.10
+conda activate verdict
+
+pip install -r requirements.txt
+```
+
+---
+
+## Training
+
+Baseline (SAC)
+
+```bash
+python train_sac.py --env reach-v3 --wandb --run_name sac-reach-v3-seed0
+```
+
+## VERDICT-RL
+
+```bash
+python train_verdict.py --env reach-v3 --use_llm_pref --wandb --run_name verdict-reach-v3-seed0
+```
+---
+
+Run the two experiments separately for a clean comparison
+
+## Logging
+
+Login to Weights & Biases once before training:
+```bash
+wandb login
+```
+
+## Optional but worth adding
+
+If vanilla SAC should stay on CPU because your LLM eats GPU memory, add:
+
+```bash
+python train_sac.py --env reach-v3 --wandb --device cpu
+```
+
+---
+
+## Example Critic Prompt
+
+```
+You are an expert RL evaluator.
+
+Compare two trajectories and decide which better achieves the goal.
+
+Return:
+1. Preferred trajectory (A or B)
+2. Short reasoning
+```
+
+---
+
+## Limitations
+
+- LLM inference cost  
+- Prompt sensitivity  
+- Bias in comparisons  
+- Training latency  
+
+---
+
+## Takeaway
+
+Rewards compress behavior into a number.  
+Comparisons preserve meaning.
+
+VERDICT-RL learns from judgment, not just signals.
