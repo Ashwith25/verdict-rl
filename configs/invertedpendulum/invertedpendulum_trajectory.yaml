@@ -2,7 +2,7 @@ task: cont_state_llm_num_reward
 num_episodes: 400
 gym_env_name: InvertedPendulum-v5
 render_mode: rgb_array
-logdir: /scratch/apoojar4/props-trajectory/invertedpendulum
+logdir: props-rlm-final/invertedpendulum
 dim_actions: 1
 dim_states: 4
 max_traj_count: 1000
@@ -13,4 +13,5 @@ llm_output_conversion_template_name: trajectory_comparator.j2
 llm_model_name: gpt-oss:120b
 bias: true
 env_desc_file: env_descriptions/invertedpendulum.j2
-dataset_file: FINAL_DATASET/inverted_pendulum_dataset.txt
+dataset_file: FINAL_DATASET/inverted_pendulum_new.txt
+task_json: agent/policy/templates/task_descriptions/inverted_pendulum.json

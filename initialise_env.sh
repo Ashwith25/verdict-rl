@@ -8,7 +8,7 @@ OLLAMA_CONTEXT_LENGTH=131072 ollama serve
 module load mamba/latest
 source activate thesis
 module load ollama/0.12.3
-export OLLAMA_HOST=10.139.126.20:11435
+export OLLAMA_HOST=10.139.126.15:11434
 
 ollama-start
 
@@ -22,5 +22,7 @@ python3 main.py --config configs/mountaincar/mountaincar_propsr.yaml
 python3 main.py --config configs/hopper/hopper_trajectory.yaml
 python3 main.py --config configs/invertedpendulum/invertedpendulum_trajectory.yaml
 python3 main.py --config configs/mountaincar/mountaincar_trajectory.yaml
+
+python3 main.py --config configs/meta-reacher/reacher_trajectory.yaml
 
 watch -n 1 -t "myjobs | grep -Ec '^[[:space:]]*[0-9]'"

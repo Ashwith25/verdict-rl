@@ -9,6 +9,7 @@ import google.generativeai as genai
 import anthropic
 import time
 import socket
+from ReplEnv import PersistentREPL
 from stats.inverted_double_pendulum.idp_stats import evaluate_params
 import json
 from configs.inverted_double_pendulum.idp_summarise_template import TEMPLATE
@@ -38,6 +39,7 @@ class LLMBrainTrajectory:
         self.llm_si_template = llm_si_template
         self.llm_output_conversion_template = llm_output_conversion_template
         self.llm_conversation = []
+        self.final_value = None
         # response_schema_dict = OutputSchema.model_json_schema()
         # self.response_schema_json = json.dumps(response_schema_dict, indent=2)
         self.parser = PydanticOutputParser(pydantic_object=OutputSchema)
@@ -117,6 +119,17 @@ class LLMBrainTrajectory:
         else:
             self.llm_conversation.append({"role": role, "parts": text})
 
+    def call_sub_lm(self, prompt: str) -> str:
+        print("[SubLM QUERY]\n", prompt, "\n[END SUBLM QUERY]")
+        completion = self.client.chat.completions.create(
+            model=self.llm_model_name,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        response = completion.choices[0].message.content
+        # thinking = completion.choices[0].message.to_dict().get("reasoning", "")
+
+        return response
+
     def query_llm(self):
         max_iter = [0, []]
         thinking = ""
@@ -129,7 +142,7 @@ class LLMBrainTrajectory:
                     )
                     response = completion.choices[0].message.content
                     thinking = completion.choices[0].message.to_dict().get("reasoning", "")
-                    self.add_llm_conversation(response, "assistant")
+                    # self.add_llm_conversation(response, "assistant")
 
                 elif self.model_group == "anthropic":
                     message = self.client.messages.create(
@@ -162,56 +175,99 @@ class LLMBrainTrajectory:
 
             return response, thinking
 
+    def extract_repl_code(self, i, text: str) -> str | None:
+        # print("*"*100, end="\n\n")
+        # print(f"EXECUTING REPL {i}:\n")
+        # print(text, end="\n\n")
+        # print("*"*100)
+        # find ```repl ... ``` block
+        start_keyword = "```repl" if 'repl' in text else "```python"
+        start = text.find(start_keyword)
+        if start == -1:
+            return None
+        start = text.find("\n", start)
+        end = text.find("```", start + 1)
+        if end == -1:
+            return None
+        return text[start+1:end]
+
+    def is_final_call(self, text: str) -> bool:
+        return "final(" in text.lower()
+
+    def _final(self, *args, **kwargs):
+        # store final answer in a REPL-visible way
+        self.final_value = (args, kwargs)
+
     def llm_update_parameters_num_optim_semantics(
         self,
         env_desc_file,
+        context,
         trajectory_a,
         trajectory_b,
+        log_dir
     ):
         self.reset_llm_conversation()
 
-        system_prompt = self.llm_si_template.render(
-            {
-                "env_description": env_desc_file,
-                "response_schema": self.parser.get_format_instructions(),
-                "trajectory_a": trajectory_a,
-                "trajectory_b": trajectory_b,
-            }
-        )
+        gloabl_vars = {
+            "trajectory_A": trajectory_a,
+            "trajectory_B": trajectory_b,
+            "context": context,
+            "llm_query": self.call_sub_lm,
+            "final": self._final,
+        }
 
-        self.add_llm_conversation(system_prompt, "user")
+        self.add_llm_conversation(self.llm_si_template.render(), "system")
+        self.add_llm_conversation(self.llm_output_conversion_template.render(), "user")
 
-        # api_start_time = time.time()
-        response, thinking = self.query_llm()
-        # api_time = time.time() - api_start_time
-        try:
-            validated_response = OutputSchema.model_validate_json(response)
-        except ValidationError as e:
-            print("INCORRECT Response from LLM:", response)
-            print("Validation error:", e)
-            raise e
+        repl = PersistentREPL(gloabl_vars)
+        i=0
 
-        # print(system_prompt)
+        while i<20:
+            root_out, thinking = self.query_llm()
 
-        # self.add_llm_conversation(new_parameters_with_reasoning, "assistant")
-        # self.add_llm_conversation(
-        #     self.llm_output_conversion_template.render(),
-        #     "user",
-        # )
-        # new_parameters = self.query_llm()
+            code = self.extract_repl_code(i, root_out)
+            if code:
+                stdout = repl.execute(code)
+            else:
+                stdout = "[NO REPL CODE IN TURN -or- NOT PROPERLY WRAPPED IN ```repl``` BLOCK]"
 
-        # new_parameters_list = parse_parameters(new_parameters_with_reasoning)
+            # Append to history: model output and truncated stdout
+            self.add_llm_conversation(root_out, "assistant")
+            self.add_llm_conversation(f"[REPL OUTPUT]\n{stdout}", "user")
 
-        # explanation = self.query_reasoning_llm(new_parameters_lis, stats) if summary else None
+            with open(f"{log_dir}/debug_turn_{i}.txt", "w") as f:
+                f.write("=== ROOT LLM OUTPUT ===\n")
+                f.write(root_out + "\n\n")
+                # if code:
+                #     f.write("=== EXECUTED CODE ===\n")
+                #     f.write(code + "\n\n")
+                f.write("=== REPL STDOUT ===\n")
+                f.write(stdout + "\n\n")
+                f.write("=== THINKING ===\n")
+                f.write(thinking + "\n")
+
+            with open(f"{log_dir}/final_prompt.txt", "w") as f:
+                f.write(self.llm_si_template.render() + "\n\n" + self.llm_output_conversion_template.render() + "\n\n")
+                f.write("=== FULL CONVERSATION HISTORY ===\n")
+                for msg in self.llm_conversation:
+                    f.write(f"{msg['role'].upper()}:\n{msg['content']}\n\n")
+
+            if self.is_final_call(root_out):
+                return (
+                    "N/A",
+                    "N/A",
+                    "N/A")
+            i+=1
 
         return (
-            validated_response.winner.value,
-            validated_response.description,
-            "system:\n"
-            + system_prompt
-            + "\n\n\nLLM:\n"
-            + response
-            + "\n\n\nThinking:\n"
-            + thinking,
+            "N/A",
+            "N/A",
+            "N/A"
+            # "system:\n"
+            # + system_prompt
+            # + "\n\n\nLLM:\n"
+            # + response
+            # + "\n\n\nThinking:\n"
+            # + thinking,
             # api_time,
         )

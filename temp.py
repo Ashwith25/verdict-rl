@@ -10,6 +10,12 @@ asurite_id = "apoojar4"
 # Get the dynamic port from the environment, default to 11434 if not set
 ollama_port = os.environ.get("OLLAMA_PORT", "11434")
 
+# Each trajectory is a list of dictionaries, where each dictionary corresponds to a timestep and contains:
+# - `t`: the timestep index
+# - `state_ID`: a unique identifier for the state at time t
+# - `next_state_ID`: a unique identifier for the state at time t+1
+# - `state_0`, `state_1`, ..., `state_10`: the state vector at time t
+
 prompt = """
 REASONING: High
 

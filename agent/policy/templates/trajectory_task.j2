@@ -1,0 +1,36 @@
+You are given two trajectories, `trajectory_A` and `trajectory_B`.
+
+Each trajectory variable is a loaded .npz file (via np.load(...)). It behaves like a dict.
+Available keys:
+- "task" → string (e.g., "reach-v3" or "push-v3")
+- "algo" → string ("sac", "td3", "ppo")
+- "seed" → int (policy seed)
+- "episode_index" → int (episode number)
+- "observations" → float32 array of shape (T, obs_dim)
+- "actions" → float32 array of shape (T, act_dim)
+- "rewards" → float32 array of shape (T,)
+- "dones" → bool array of shape (T,)
+T is the episode length (number of timesteps).
+
+Your job:
+1. Analyze both trajectories.
+2. Decide which trajectory better solves the task in a human-aligned sense, not just raw reward.
+3. Use the REPL to compute useful metrics (e.g., progress-to-goal over time, stability, safety, smoothness).
+4. If needed, you may inspect and reason about specific segments in more detail.
+5. At the end, choose either "Trajectory A" or "Trajectory B" and give a brief justification.
+
+Note: The actions would go over limit in some steps, but the environment would clip them to be within valid range.
+
+Below are some guidelines to help you analyze the trajectories effectively:
+1. Don't just summarize the trajectories; analyze the behaviors exhibited by each policy.
+2. Evaluate how effectively each policy achieves the environment's goals.
+3. Discuss the strengths and weaknesses of each policy based on their trajectories.
+4. Consider any trade-offs made by each policy in terms of performance, stability, and efficiency.
+5. Don't just rely on the length of the trajectories; consider the quality of actions taken at each step.
+6. Lookout for trajectories exhibiting signs of reward hacking or gaming the environment.
+7. Try to identify the pivotal moments in the trajectories that lead to success or failure, and analyze those in detail.
+
+The full trajectory data are already loaded as Python objects:
+- `trajectory_A`
+- `trajectory_B`
+- Additional metadata lives in `context` dictionary. Be sure to check it in a batch/smart way to gather the heads-up information there (e.g., task description, goal, state/action meanings, evaluation criteria).

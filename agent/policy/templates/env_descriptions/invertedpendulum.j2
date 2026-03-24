@@ -5,7 +5,7 @@ The action space is 1 single float, representing the force to be applied on the 
 
 The policy is a linear policy with 5 parameters and works as follows: 
 action = argmax(state @ W + b), where
-state = [cart_position, pole_angle, cart_velocity, pole_angular_velocity]
+state = [state[0], state[1], state[2], state[3]]
 W = [[params[0]],
     [params[1]],
     [params[2]],

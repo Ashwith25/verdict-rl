@@ -11,6 +11,7 @@ import time
 import json
 import random
 import cv2
+from csv_to_json import trajectory_string_to_json
 
 class LLMNumOptimTrajectoryAgent:
     def __init__(
@@ -58,7 +59,8 @@ class LLMNumOptimTrajectoryAgent:
         state = np.expand_dims(state, axis=0)
         # trajectory = f"{', '.join([str(x) for x in self.policy.get_parameters().reshape(-1)])}\n"
         # trajectory += f"parameter ends\n\n"
-        trajectory = f"state | action | next state\n"
+        # trajectory = f"state | action | next state\n"
+        trajectory = ""
 
         frames = []
         if hasattr(world, 'render_mode') and world.render_mode == "rgb_array":
@@ -144,24 +146,7 @@ class LLMNumOptimTrajectoryAgent:
         # print(self.replay_buffer.buffer)
         # self.replay_buffer.sort()
 
-    def train_policy(self, world: BaseWorld, logdir, policy_A, policy_B):
-
-        def str_nd_examples(params, replay_buffer: EpisodeRewardBuffer, traj_buffer: ReplayBuffer, n):
-            text = ""
-            print('Num trajs in buffer:', len(traj_buffer.buffer))
-            print('Num params in buffer:', len(replay_buffer.buffer))
-            for parameters, true_reward, pred_reward, _ in replay_buffer.buffer:
-                l = ""
-                for i in range(n):
-                    l += f"params[{i}]: {parameters[i]:.5g}; "
-                l += f"true_reward(params): {true_reward:.2f}; "
-                l += f"predicted_reward(params): {pred_reward:.2f}\n" if pred_reward else f"predicted_reward(params): N/A\n"
-                #! uncomment for summary
-                # if explanation:
-                #     l += f"Episodic performance details: {explanation}\n\n"
-                # l += f"Trajectory: {traj_buffer.buffer[idx]}\n\n"
-                text += l
-            return text
+    def train_policy(self, world: BaseWorld, logdir, policy_A, policy_B, context, traj_A_path=None, traj_B_path=None):
 
         # Update the policy using llm_brain, q_table and replay_buffer
         print("Updating the policy...")
@@ -175,43 +160,54 @@ class LLMNumOptimTrajectoryAgent:
         # self.policy.initialize_policy()
         # params = np.array(self.policy.get_parameters()).reshape(-1)
 
-        self.policy.update_policy(policy_A)
-        trajectory_A, reward_A, frames_A = self.rollout_episode(world)
-        self.policy.update_policy(policy_B)
-        trajectory_B, reward_B, frames_B = self.rollout_episode(world)
+        if traj_A_path is None and traj_B_path is None:
+            self.policy.update_policy(policy_A)
+            trajectory_A, reward_A, frames_A = self.rollout_episode(world)
+            self.policy.update_policy(policy_B)
+            trajectory_B, reward_B, frames_B = self.rollout_episode(world)
 
-        if frames_A and frames_B:
-            try:
-                max_len = max(len(frames_A), len(frames_B))
-                height, width, _ = frames_A[0].shape
-                # Create video writer
-                video_filename = f"{logdir}/comparison.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(video_filename, fourcc, 30.0, (width * 2, height))
+            if frames_A and frames_B:
+                try:
+                    max_len = max(len(frames_A), len(frames_B))
+                    height, width, _ = frames_A[0].shape
+                    # Create video writer
+                    video_filename = f"{logdir}/comparison.mp4"
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    out = cv2.VideoWriter(video_filename, fourcc, 30.0, (width * 2, height))
 
-                for i in range(max_len):
-                    # Use last frame if one video is shorter
-                    frame_a = frames_A[min(i, len(frames_A) - 1)]
-                    frame_b = frames_B[min(i, len(frames_B) - 1)]
-                    
-                    # Ensure dimensions match (resize B to A if necessary)
-                    if frame_a.shape != frame_b.shape:
-                        frame_b = cv2.resize(frame_b, (frame_a.shape[1], frame_a.shape[0]))
+                    for i in range(max_len):
+                        # Use last frame if one video is shorter
+                        frame_a = frames_A[min(i, len(frames_A) - 1)]
+                        frame_b = frames_B[min(i, len(frames_B) - 1)]
+                        
+                        # Ensure dimensions match (resize B to A if necessary)
+                        if frame_a.shape != frame_b.shape:
+                            frame_b = cv2.resize(frame_b, (frame_a.shape[1], frame_a.shape[0]))
 
-                    # Stitch horizontally
-                    stitched_frame = np.concatenate((frame_a, frame_b), axis=1)
-                    # Convert RGB (Gym) to BGR (OpenCV)
-                    stitched_frame = cv2.cvtColor(stitched_frame, cv2.COLOR_RGB2BGR)
-                    out.write(stitched_frame)
-                out.release()
-            except Exception as e:
-                print(f"Failed to save comparison video: {e}")
+                        # Stitch horizontally
+                        stitched_frame = np.concatenate((frame_a, frame_b), axis=1)
+                        # Convert RGB (Gym) to BGR (OpenCV)
+                        stitched_frame = cv2.cvtColor(stitched_frame, cv2.COLOR_RGB2BGR)
+                        out.write(stitched_frame)
+                    out.release()
+                except Exception as e:
+                    print(f"Failed to save comparison video: {e}")
+
+            trajectory_A = trajectory_string_to_json(trajectory_A)
+            trajectory_B = trajectory_string_to_json(trajectory_B)
+        else:
+            trajectory_A = np.load(traj_A_path, allow_pickle=True)
+            reward_A = float(trajectory_A["rewards"].sum())
+            trajectory_B = np.load(traj_B_path, allow_pickle=True)
+            reward_B = float(trajectory_B["rewards"].sum())
 
 
         winner, description, reasoning = self.llm_traj_brain.llm_update_parameters_num_optim_semantics(
             self.env_desc_file,
-            trajectory_A,
-            trajectory_B,
+            context=context,
+            trajectory_a=trajectory_A,
+            trajectory_b=trajectory_B,
+            log_dir=logdir
         )
         
         logging_q_filename = f"{logdir}/policies.txt"
@@ -221,7 +217,7 @@ class LLMNumOptimTrajectoryAgent:
         q_reasoning_filename = f"{logdir}/reasoning.txt"
         q_reasoning_file = open(q_reasoning_filename, "w")
         q_reasoning_file.write(reasoning)
-        q_reasoning_file.close()        
+        q_reasoning_file.close()
 
         self.training_episodes += 1
 

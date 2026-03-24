@@ -6,7 +6,7 @@ from scipy.stats import spearmanr
 import os
 
 # --- CONFIGURATION ---
-LOG_FILE = "props-BT-2/hopper/trial_1/overall_log.txt"
+LOG_FILE = "props-rlm/hopper/overall_log.txt"
 OUTPUT_DIR = "traj-plots-MLE/hopper-30"
 OUTPUT_CSV = "traj-plots-MLE/hopper-30/ranking_comparison.csv"
 os.makedirs(OUTPUT_DIR, exist_ok=True)

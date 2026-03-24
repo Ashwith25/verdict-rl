@@ -2,7 +2,7 @@ task: cont_state_llm_num_optim_semantics
 num_episodes: 395
 gym_env_name: Hopper-v5
 render_mode: rgb_array
-logdir: props-rlm-final/hopper
+logdir: props-rlm-meta/reach-once-again
 dim_actions: 3
 dim_states: 11
 max_traj_count: 1000
@@ -14,4 +14,5 @@ llm_model_name: gpt-oss:120b
 bias: true
 env_desc_file: env_descriptions/hopper.j2
 dataset_file: FINAL_DATASET/hopper_dataset_new.txt
-task_json: agent/policy/templates/task_descriptions/hopper.json
+task_json: agent/policy/templates/task_descriptions/meta-reach.json
+traj_dir_path: rollouts_2eps
