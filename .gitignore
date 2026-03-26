@@ -6,3 +6,5 @@
 /__pycache__/
 ablation*
 *.txt
+wandb
+checkpoints

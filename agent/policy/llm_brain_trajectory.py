@@ -17,12 +17,13 @@ from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field, ValidationError
 from typing import Tuple, Any, List, Optional, Dict
 from enum import Enum
+import re
 # from ollama_config import ollama_base_url
 # from ollama import chat
 
 class Winner(str, Enum):
-    A = "A"
-    B = "B"
+    A = "new"
+    B = "ref"
     TIE = "Tie"
 
 class OutputSchema(BaseModel):
@@ -192,23 +193,43 @@ class LLMBrainTrajectory:
         return text[start+1:end]
 
     def is_final_call(self, text: str) -> bool:
-        return "final(" in text.lower()
+        # Check if final() is called WITHIN a ```repl``` code block
+        # The final() must be properly wrapped in executable code
+        repl_code = self.extract_repl_code(0, text)
+        if not repl_code:
+            return False
+        # Check if final() with valid arguments exists in the extracted code
+        # Only accept literal values (letters, numbers, spaces), no variables
+        pattern = r'final\s*\(\s*["\']?[A-Za-z0-9\s]+["\']?\s*(?:,\s*["\']?[^)]+["\']?)*\s*\)'
+        return bool(re.search(pattern, repl_code.lower()))
 
     def _final(self, *args, **kwargs):
         # store final answer in a REPL-visible way
-        self.final_value = (args, kwargs)
+        # Extract trajectory letter from arguments
+        # Handles: "Trajectory B", "trajectory B", "B", or any case variation
+        if args and isinstance(args[0], str):
+            # Try to match "Trajectory/trajectory B" or just "B"
+            match = re.search(r'[Tt]rajectory\s+([A-Z])|^([A-Z])$', args[0])
+            if match:
+                # Get whichever group matched (non-None)
+                self.final_value = match.group(1) or match.group(2)
+            else:
+                self.final_value = args[0]
+        else:
+            self.final_value = args[0] if args else None
+        print(f"[FINAL CALLED] Final value set to: {self.final_value}")
 
     def llm_update_parameters_num_optim_semantics(
         self,
-        env_desc_file,
         context,
         trajectory_a,
         trajectory_b,
-        log_dir
+        log_dir,
+        env_desc_file=None
     ):
         self.reset_llm_conversation()
 
-        gloabl_vars = {
+        global_vars = {
             "trajectory_A": trajectory_a,
             "trajectory_B": trajectory_b,
             "context": context,
@@ -219,7 +240,7 @@ class LLMBrainTrajectory:
         self.add_llm_conversation(self.llm_si_template.render(), "system")
         self.add_llm_conversation(self.llm_output_conversion_template.render(), "user")
 
-        repl = PersistentREPL(gloabl_vars)
+        repl = PersistentREPL(global_vars)
         i=0
 
         while i<20:
@@ -253,21 +274,7 @@ class LLMBrainTrajectory:
                     f.write(f"{msg['role'].upper()}:\n{msg['content']}\n\n")
 
             if self.is_final_call(root_out):
-                return (
-                    "N/A",
-                    "N/A",
-                    "N/A")
+                return self.final_value
             i+=1
 
-        return (
-            "N/A",
-            "N/A",
-            "N/A"
-            # "system:\n"
-            # + system_prompt
-            # + "\n\n\nLLM:\n"
-            # + response
-            # + "\n\n\nThinking:\n"
-            # + thinking,
-            # api_time,
-        )
+        return self.final_value

@@ -9,7 +9,7 @@ max_traj_count: 1000
 max_traj_length: 1000
 template_dir: agent/policy/templates
 llm_si_template_name: trajectory_comparator.j2
-llm_output_conversion_template_name: trajectory_comparator.j2
+llm_output_conversion_template_name: trajectory_task.j2
 llm_model_name: gpt-oss:120b
 bias: true
 env_desc_file: env_descriptions/hopper.j2

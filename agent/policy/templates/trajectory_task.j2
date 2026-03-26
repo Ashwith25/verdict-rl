@@ -1,16 +1,9 @@
 You are given two trajectories, `trajectory_A` and `trajectory_B`.
 
-Each trajectory variable is a loaded .npz file (via np.load(...)). It behaves like a dict.
-Available keys:
-- "task" → string (e.g., "reach-v3" or "push-v3")
-- "algo" → string ("sac", "td3", "ppo")
-- "seed" → int (policy seed)
-- "episode_index" → int (episode number)
-- "observations" → float32 array of shape (T, obs_dim)
-- "actions" → float32 array of shape (T, act_dim)
-- "rewards" → float32 array of shape (T,)
-- "dones" → bool array of shape (T,)
-T is the episode length (number of timesteps).
+Each trajectory is a list of dictionaries, where each dictionary represents a step in the trajectory and contains the following keys:
+- `obs`: The observation at that step.
+- `action`: The action taken at that step.
+- `info`: Additional information about that step.
 
 Your job:
 1. Analyze both trajectories.

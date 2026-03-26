@@ -15,7 +15,7 @@ class PersistentREPL:
             print(f"[RUNTIME ERROR] {e}", file=buf)
         out = buf.getvalue()
         # hard truncate stdout
-        max_len = 3000
+        max_len = 5000
         if len(out) > max_len:
             out = out[:max_len] + "\n...[truncated]..."
         return out
