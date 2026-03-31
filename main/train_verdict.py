@@ -51,9 +51,13 @@ def main():
             group="verdict"
         )
         weave.init(project_name=args.project)
-
-    env = gym.make("Meta-World/MT1", env_name=args.env)
-    eval_env = gym.make("Meta-World/MT1", env_name=args.env)
+    
+    if args.env in metaworld.ML1.ENV_NAMES:
+        env = gym.make("Meta-World/MT1", env_name=args.env)
+        eval_env = gym.make("Meta-World/MT1", env_name=args.env)
+    else:
+        env = gym.make(args.env)
+        eval_env = gym.make(args.env)
 
     env.reset(seed=args.seed)
     eval_env.reset(seed=args.seed + 1)
@@ -90,6 +94,7 @@ def main():
         n_eval_episodes=args.n_eval_episodes,
         use_wandb=args.wandb,
         prefix="verdict",
+        is_mtl=args.env in metaworld.ML1.ENV_NAMES,
     )
 
     best_callback = BestPolicyCallback(
@@ -97,9 +102,11 @@ def main():
         pref_model=pref_model,
         best_model=best_model,
         eval_freq=args.best_eval_freq,
+        ref_bank=ref_bank,
         n_eval_episodes=args.best_n_eval_episodes,
         tolerance=0.02,
         use_wandb=args.wandb,
+        is_mtl=args.env in metaworld.ML1.ENV_NAMES,
     )
 
     model.learn(

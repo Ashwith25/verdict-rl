@@ -27,3 +27,24 @@ def evaluate(model, env, n_episodes=10):
         "reward_std": float(np.std(rewards)),
         "success_rate": float(np.mean(successes)),
     }
+
+def evaluate_for_non_mtl(model, env, n_episodes=10):
+    rewards = []
+
+    for _ in range(n_episodes):
+        obs, _ = env.reset()
+        done = False
+        total_reward = 0.0
+
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
+            total_reward += float(reward)
+
+        rewards.append(total_reward)
+
+    return {
+        "reward_mean": float(np.mean(rewards)),
+        "reward_std": float(np.std(rewards)),
+    }

@@ -2,7 +2,7 @@ task: cont_state_llm_num_optim_semantics
 num_episodes: 395
 gym_env_name: Hopper-v5
 render_mode: rgb_array
-logdir: verdict-rl-logs
+logdir: verdict-reacher-logs-updated
 dim_actions: 3
 dim_states: 11
 max_traj_count: 1000

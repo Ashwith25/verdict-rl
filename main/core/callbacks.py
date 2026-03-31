@@ -3,7 +3,7 @@ import wandb
 import numpy as np
 
 from stable_baselines3.common.callbacks import BaseCallback
-from core.eval import evaluate
+from core.eval import evaluate, evaluate_for_non_mtl
 
 
 class WandbEvalCallback(BaseCallback):
@@ -14,6 +14,7 @@ class WandbEvalCallback(BaseCallback):
         n_eval_episodes=10,
         use_wandb=False,
         prefix="eval",
+        is_mtl=False,
     ):
         super().__init__()
         self.eval_env = eval_env
@@ -21,15 +22,19 @@ class WandbEvalCallback(BaseCallback):
         self.n_eval_episodes = n_eval_episodes
         self.use_wandb = use_wandb
         self.prefix = prefix
-
+        self.is_mtl = is_mtl
     def _on_step(self) -> bool:
         if self.num_timesteps % self.eval_freq == 0:
-            metrics = evaluate(self.model, self.eval_env, self.n_eval_episodes)
+            metrics = evaluate(self.model, self.eval_env, self.n_eval_episodes) if self.is_mtl else evaluate_for_non_mtl(self.model, self.eval_env, self.n_eval_episodes)
 
             log_data = {
                 f"{self.prefix}/reward_mean": metrics["reward_mean"],
                 f"{self.prefix}/reward_std": metrics["reward_std"],
                 f"{self.prefix}/success_rate": metrics["success_rate"],
+                "timesteps": self.num_timesteps,
+            } if self.is_mtl else {
+                f"{self.prefix}/reward_mean": metrics["reward_mean"],
+                f"{self.prefix}/reward_std": metrics["reward_std"],
                 "timesteps": self.num_timesteps,
             }
 
@@ -109,7 +114,7 @@ class PreferenceCallback(BaseCallback):
             idx = (buffer.pos - i - 1) % buffer.buffer_size
             buffer.rewards[idx] += bonus
 
-        self.ref_bank.add(tau_new)
+        # self.ref_bank.add(tau_new)
         self.episode_count += 1
 
         if self.use_wandb:
@@ -130,10 +135,12 @@ class BestPolicyCallback(BaseCallback):
         eval_env,
         pref_model,
         best_model,
+        ref_bank,
         eval_freq=10000,
         n_eval_episodes=5,
         tolerance=0.02,
         use_wandb=False,
+        is_mtl=False,
     ):
         super().__init__()
         self.eval_env = eval_env
@@ -141,13 +148,45 @@ class BestPolicyCallback(BaseCallback):
         self.best_model = best_model
         self.eval_freq = eval_freq
         self.n_eval_episodes = n_eval_episodes
+        self.ref_bank = ref_bank
         self.tolerance = tolerance
         self.use_wandb = use_wandb
+        self.is_mtl = is_mtl
         self.eval_round = 0
+        self.best_initialized = False
         self.last_best_eval_step = 0
 
     def _sync_best_model(self):
         self.best_model.set_parameters(self.model.get_parameters(), exact_match=True)
+
+    def _collect_best_bank_trajs(self, model):
+        trajs = []
+
+        for _ in range(self.n_eval_episodes):
+            obs, _ = self.eval_env.reset()
+            done = False
+            traj = []
+
+            while not done:
+                action, _ = model.predict(obs, deterministic=True)
+                next_obs, reward, terminated, truncated, info = self.eval_env.step(action)
+                done = terminated or truncated
+
+                traj.append(
+                    {
+                        "obs": obs,
+                        "action": action,
+                        "reward": float(reward),
+                        "info": info,
+                    }
+                )
+
+                obs = next_obs
+
+            trajs.append(traj)
+
+        return trajs
+
 
     def _collect_trajs(self, model):
         trajs = []
@@ -168,6 +207,7 @@ class BestPolicyCallback(BaseCallback):
                         "obs": obs,
                         "action": action,
                         "info": info,
+                        "reward": reward,
                     }
                 )
 
@@ -202,6 +242,15 @@ class BestPolicyCallback(BaseCallback):
 
         self.last_best_eval_step = self.num_timesteps
 
+        if not self.best_initialized:
+            self._sync_best_model()
+            best_bank_trajs = self._collect_best_bank_trajs(self.best_model)
+            self.ref_bank.replace_all(best_bank_trajs)
+
+            self.best_initialized = True
+            self.last_best_eval_step = self.num_timesteps
+            return True
+
         # if self.eval_round == 0:
         #     self._sync_best_model()
         #     self.eval_round += 1
@@ -209,40 +258,73 @@ class BestPolicyCallback(BaseCallback):
 
         current_trajs = self._collect_trajs(self.model)
         best_trajs = self._collect_trajs(self.best_model)
-
-        success_current = float(np.mean([x["success"] for x in current_trajs]))
-        success_best = float(np.mean([x["success"] for x in best_trajs]))
         pref_score = self._compare_sets(current_trajs, best_trajs)
 
-        should_update = (
-            success_current >= success_best - self.tolerance and pref_score > 0
-        )
+        if self.is_mtl:
+            success_current = float(np.mean([x["success"] for x in current_trajs]))
+            success_best = float(np.mean([x["success"] for x in best_trajs]))
+            
+            should_update = (
+                success_current >= success_best - self.tolerance and pref_score > 0
+            )
+        else:
+            reward_current = float(np.mean([sum(step["reward"] for step in x["traj"]) for x in current_trajs]))
+            reward_best = float(np.mean([sum(step["reward"] for step in x["traj"]) for x in best_trajs]))
+
+            should_update = (
+                reward_current >= reward_best - self.tolerance and pref_score > 0
+            )
 
         if should_update:
             self._sync_best_model()
+            best_bank_trajs = self._collect_best_bank_trajs(self.best_model)
+            self.ref_bank.replace_all(best_bank_trajs)
 
         self.eval_round += 1
 
         if self.use_wandb:
-            wandb.log(
-                {
-                    "best_policy/success_current": success_current,
-                    "best_policy/success_best": success_best,
-                    "best_policy/pref_score": pref_score,
-                    "best_policy/updated": int(should_update),
-                    "timesteps": self.num_timesteps,
-                },
-                step=self.num_timesteps,
-            )
+            if self.is_mtl:
+                wandb.log(
+                    {
+                        "best_policy/success_current": success_current,
+                        "best_policy/success_best": success_best,
+                        "best_policy/pref_score": pref_score,
+                        "best_policy/updated": int(should_update),
+                        "timesteps": self.num_timesteps,
+                    },
+                    step=self.num_timesteps,
+                )
+            else:
+                wandb.log(
+                    {
+                        "best_policy/reward_current": reward_current,
+                        "best_policy/reward_best": reward_best,
+                        "best_policy/pref_score": pref_score,
+                        "best_policy/updated": int(should_update),
+                        "timesteps": self.num_timesteps,
+                    },
+                    step=self.num_timesteps,
+                )
 
-        print(
-            {
-                "timesteps": self.num_timesteps,
-                "success_current": success_current,
-                "success_best": success_best,
-                "pref_score": pref_score,
-                "best_updated": should_update,
-            }
-        )
+        if self.is_mtl:
+            print(
+                {
+                    "timesteps": self.num_timesteps,
+                    "success_current": success_current,
+                    "success_best": success_best,
+                    "pref_score": pref_score,
+                    "best_updated": should_update,
+                }
+            )
+        else:
+            print(
+                {
+                    "timesteps": self.num_timesteps,
+                    "reward_current": reward_current,
+                    "reward_best": reward_best,
+                    "pref_score": pref_score,
+                    "best_updated": should_update,
+                }
+            )
 
         return True

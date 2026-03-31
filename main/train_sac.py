@@ -39,8 +39,12 @@ def main():
             group="vanilla"
         )
 
-    env = gym.make("Meta-World/MT1", env_name=args.env)
-    eval_env = gym.make("Meta-World/MT1", env_name=args.env)
+    if args.env in metaworld.ML1.ENV_NAMES:
+        env = gym.make("Meta-World/MT1", env_name=args.env)
+        eval_env = gym.make("Meta-World/MT1", env_name=args.env)
+    else:
+        env = gym.make(args.env)
+        eval_env = gym.make(args.env)
 
     env.reset(seed=args.seed)
     eval_env.reset(seed=args.seed + 1)
@@ -59,6 +63,7 @@ def main():
         n_eval_episodes=args.n_eval_episodes,
         use_wandb=args.wandb,
         prefix="vanilla",
+        is_mtl=args.env in metaworld.ML1.ENV_NAMES,
     )
 
     model.learn(
