@@ -25,39 +25,47 @@ We ask:
 
 ---
 
-## Method
-
-```mermaid
-flowchart TD
-    A[Environment] --> B[Policy]
-    B --> C[Trajectories]
-    C --> D[Pairwise Sampler]
-    D --> E[LLM Critic]
-    E --> F[Preference Signal]
-    F --> G[Policy Update]
-    G --> B
-```
-
----
-
 ## Training Loop
 
 ```mermaid
 sequenceDiagram
-    participant Policy
+    participant SAC as Agent
     participant Env as Environment
-    participant Buffer
-    participant LLM as LLM Critic
+    participant LLM as LLM Preference Model
+    participant Bank as Best Trajectory Buffer
+    participant Best as Best Policy
 
-    Policy->>Env: Rollout
-    Env-->>Policy: Observations
-    Policy->>Buffer: Store trajectories
+    %% ===== Training Loop =====
+    rect rgb(196,122,83)
+        note over SAC,LLM: Per-Episode Training Loop
 
-    Buffer->>LLM: Sample (τ₁, τ₂)
-    LLM-->>Buffer: Preference (τ₁ > τ₂)
+        SAC->>Env: Rollout trajectory τ_new
+        Env-->>SAC: states, actions, rewards
 
-    Buffer->>Policy: Learning signal
-    Policy->>Policy: Update parameters
+        SAC->>Bank: Sample τ_best
+        Bank-->>SAC: τ_best
+
+        SAC->>LLM: Compare τ_new vs τ_best
+        LLM-->>SAC: s_pref ∈ {+1, -1}
+
+        SAC->>SAC: Modify reward\nr = r_env + (α * s_pref / T)
+    end
+
+    %% ===== Best Policy Update =====
+    rect rgb(143,71,49)
+        note over SAC,Best: Periodic Best-Policy Update
+
+        SAC->>Env: Rollout N trajectories (current)
+        Best->>Env: Rollout N trajectories (best)
+
+        SAC->>LLM: Compare trajectory sets
+        LLM-->>SAC: pref_score
+
+        alt If current is better AND preferred
+            SAC->>Best: Update π_best ← π
+            Best->>Bank: Refresh τ_best set
+        end
+    end
 ```
 
 ---
