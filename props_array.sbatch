@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=verdict-reacher
-#SBATCH --array=0-2
+#SBATCH --job-name=hill-climb-hopper
+#SBATCH --array=1-3
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2           # Default cores per sub-job (can be overridden with -c)
@@ -11,11 +11,11 @@
 #SBATCH --time=24:00:00             # Wall time for each sub-job
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=%u@asu.edu
-#SBATCH --output=props-rlm-logs-best/reacher/slurm/task_%a.log
-#SBATCH --error=props-rlm-logs-best/reacher/slurm/task_%a.err
+#SBATCH --output=hill-climb_logs/hopper/slurm/task_%a.log
+#SBATCH --error=hill-climb_logs/hopper/slurm/task_%a.err
 
 # --- Job Configuration ---
-CONFIG_FILE="configs/meta-reacher/reacher_trajectory.yaml"
+CONFIG_FILE="configs/hopper/hopper_trajectory.yaml"
 taskid=$SLURM_ARRAY_TASK_ID
 # BASE_LOG_DIR="verdict-rl/hopper-seed-0"
 
@@ -65,13 +65,13 @@ source activate thesis
 #     --config "$CONFIG_FILE" \
 #     --logdir "$BASE_LOG_DIR"
 
-/home/apoojar4/.conda/envs/thesis/bin/python3 main/train_verdict.py \
-    --env reach-v3 \
+/home/apoojar4/.conda/envs/thesis/bin/python3 hill-climbing/train.py \
+    --env Hopper-v5 \
     --seed $taskid \
     --use_llm_pref \
     --wandb \
     --alpha 0.1 \
-    --run_name verdict-reacher-updated-seed-$taskid \
+    --run_name hopper-hill-climb-seed-$taskid \
     --device cpu \
     --config "$CONFIG_FILE"
 

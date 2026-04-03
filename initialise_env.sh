@@ -27,4 +27,6 @@ python3 main.py --config configs/meta-reacher/reacher_trajectory.yaml
 
 python main/train_verdict.py --env reach-v3 --use_llm_pref --wandb --run_name verdict-reach-v3-seed0 --device cpu --config configs/meta-reacher/reacher_trajectory.yaml
 
+python hill-climbing/train.py --env Hopper-v5 --use_llm_pref --wandb --run_name hopper-hill-climb-seed-0 --device cpu --config configs/hopper/hopper_trajectory.yaml
+
 watch -n 1 -t "myjobs | grep -Ec '^[[:space:]]*[0-9]'"
