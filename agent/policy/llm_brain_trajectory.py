@@ -9,7 +9,7 @@ import google.generativeai as genai
 import anthropic
 import time
 import socket
-from ReplEnv import PersistentREPL
+from main.core.ReplEnv import PersistentREPL
 from stats.inverted_double_pendulum.idp_stats import evaluate_params
 import json
 from configs.inverted_double_pendulum.idp_summarise_template import TEMPLATE

@@ -25,6 +25,12 @@ We ask:
 
 ---
 
+## Architecture
+
+![VERDICT-RL Architecture](static/arch-light.png)
+
+
+
 ## Training Loop
 
 ```mermaid
@@ -101,13 +107,22 @@ pip install -r requirements.txt
 Baseline (SAC)
 
 ```bash
-python train_sac.py --env reach-v3 --wandb --run_name sac-reach-v3-seed0
+python main/train_sac.py --env reach-v3 --seed 0 --wandb --run_name sac-reach-v3-seed-0 --device cpu
 ```
 
 ## VERDICT-RL
 
 ```bash
-python train_verdict.py --env reach-v3 --use_llm_pref --wandb --run_name verdict-reach-v3-seed0
+python3 main/train_verdict.py \
+    --env reach-v3 \
+    --seed 0 \
+    --use_llm_pref \
+    --wandb \
+    --alpha 0.1 \
+    --run_name verdict-reach-v3-seed-0 \
+    --device cpu \
+    --config configs/meta-reacher/reacher_trajectory.yaml
+
 ```
 ---
 
@@ -118,28 +133,6 @@ Run the two experiments separately for a clean comparison
 Login to Weights & Biases once before training:
 ```bash
 wandb login
-```
-
-## Optional but worth adding
-
-If vanilla SAC should stay on CPU because your LLM eats GPU memory, add:
-
-```bash
-python train_sac.py --env reach-v3 --wandb --device cpu
-```
-
----
-
-## Example Critic Prompt
-
-```
-You are an expert RL evaluator.
-
-Compare two trajectories and decide which better achieves the goal.
-
-Return:
-1. Preferred trajectory (A or B)
-2. Short reasoning
 ```
 
 ---
