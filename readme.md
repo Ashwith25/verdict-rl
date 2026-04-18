@@ -27,7 +27,7 @@ We ask:
 
 ## Architecture
 
-![VERDICT-RL Architecture](static/arch.png)
+![VERDICT-RL Architecture](static/arch-light.png)
 
 
 
